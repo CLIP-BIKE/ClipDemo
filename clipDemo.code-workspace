@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "clipDemo",
+			"path": "."
+		}
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}
