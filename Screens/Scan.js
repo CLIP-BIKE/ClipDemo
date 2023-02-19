@@ -4,22 +4,28 @@ import { BleManager } from 'react-native-ble-plx';
 import { LogBox } from 'react-native';
 import { TouchableOpacity } from 'react-native';
 import CheckForBluetoothPermissions from '../BLE components/CheckForPermissions';
+import { RefreshControl } from 'react-native';
 
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
 
-function Scan() {
+function Scanner() {
   const [devices, setDevices] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
-  const {requestPermissions} = CheckForBluetoothPermissions();
+  const [refreshing, setRefreshing] = React.useState(false);
+  const { requestPermissions } = CheckForBluetoothPermissions();
 
   const manager = new BleManager();
 
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    scanForDevices();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
   useEffect(() => {
     scanForDevices();
-    //Stop scan after 5 seconds
-    setTimeout(() => {
-      stopScan();
-    }, 10000);
 
     return () => {
       stopScan();
@@ -28,7 +34,7 @@ function Scan() {
 
   const scanForDevices = () => {
     requestPermissions(isGranted => {
-      if(isGranted){
+      if (isGranted) {
         setIsScanning(true);
         setDevices([]);
         manager.startDeviceScan(null, null, (error, device) => {
@@ -37,19 +43,25 @@ function Scan() {
             return;
           }
           console.log(device.localName);
-          if(device.localName === 'Clip.bike' || device.localName === 'Clip.Main' || device.localName === 'MainDfu' || device.localName === 'Blank bbbhugffytyygctffyf'){
+          if (device.localName === 'Clip.bike' || device.localName === 'Clip.Main' || device.localName === 'MainDfu' || device.localName === 'Blank bbbhugffytyygctffyf') {
             setDevices(devices => {
               const existingDeviceIndex = devices.findIndex(d => d.id === device.id);
-                if (existingDeviceIndex !== -1) {
-                  devices[existingDeviceIndex] = device;
-                  return [...devices];
-                } else {
-                  return [...devices, device];
-                }
+              if (existingDeviceIndex !== -1) {
+                devices[existingDeviceIndex] = device;
+                return [...devices];
+              } else {
+                return [...devices, device];
+              }
             });
+
+            setTimeout(() => {
+              setIsScanning(false)
+              stopScan();
+            }, 5000);
+
           }
         });
-      }else{
+      } else {
         <Text>PLease Allow bluetooth</Text>
       }
     });
@@ -84,6 +96,7 @@ function Scan() {
 
       {!isScanning && (
         <FlatList
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}></RefreshControl>}
           data={devices}
           keyExtractor={item => item.id}
           renderItem={renderItem}
@@ -94,4 +107,4 @@ function Scan() {
   );
 }
 
-export default Scan;
+export default Scanner;
