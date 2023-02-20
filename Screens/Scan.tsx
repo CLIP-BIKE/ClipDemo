@@ -4,12 +4,7 @@ import { LogBox } from 'react-native';
 import { TouchableOpacity } from 'react-native';
 import CheckForBluetoothPermissions from '../BLE components/CheckForPermissions';
 import { RefreshControl } from 'react-native';
-import {
-  BleError,
-  BleManager,
-  Characteristic,
-  Device,
-} from 'react-native-ble-plx';
+import {BleError,BleManager,Characteristic,Device,} from 'react-native-ble-plx';
 const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const TX_CHARACTERISTIC = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 const RX_CHARACTERISTIC = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
@@ -86,15 +81,26 @@ function Scanner(){
       const deviceConnection = await manager.connectToDevice(device.id);
       setConnectedDevice(deviceConnection);
       manager.stopDeviceScan();
+      console.log('About to check for services')
       const status = await device.isConnected();
+      console.log('The status is', status);
       if(status){
+        connectedDevice?.connect();
         console.log(device.id, 'was successfully connected', status);
-        /*let services = await device.discoverAllServicesAndCharacteristics().then((results) =>{
+        await device.discoverAllServicesAndCharacteristics().then(async (results) =>{
           console.log(results)
+          const services = await device.services();
+          for (let service of services) {
+            console.log(`Service UUID: ${service.uuid}`);
+
+            const characteristics = await service.characteristics();
+            for (let characteristic of characteristics) {
+              console.log(`Characteristic UUID: ${characteristic.uuid}`);
+            }
+          }
         });
-        console.log(services);*/
       }else{
-        console.log(device.id, 'was successfully connected', status);
+        console.log(device.id, 'was not connected but error did not show', status);
       }
     } catch (e) {
       console.log('FAILED TO CONNECT', e);
@@ -117,7 +123,7 @@ function Scanner(){
     setIsScanning(false);
     manager.stopDeviceScan();
   };
-  const [connectedDeviceS, setConnectedDeviceS] = useState(null);
+  const [connectedDeviceS, setConnectedDeviceS] = useState<Device |null>(null);
   const renderItem = ({ item }: { item: Device }) => (
     <View style={{ margin: 10 }}>
       <Text style={{ fontWeight: 'bold' }}>{item?.localName || 'Unknown'}</Text>
