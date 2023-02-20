@@ -44,7 +44,7 @@ function Scanner(){
       if (isGranted) {
         setIsScanning(true);
         setDevices([]);
-        manager.startDeviceScan(null, null, (error, device) => {
+        manager.startDeviceScan(null, null, async (error, device) => {
           if (error) {
             console.log(error);
             return;
@@ -56,7 +56,7 @@ function Scanner(){
             (device.localName === 'Clip.bike' ||
               device.localName === 'Clip.Main' ||
               device.localName === 'MainDfu' ||
-              device.localName === 'Blank bbbhugffytyygctffyf')
+              device.localName === 'Cycling Speed and Cadence')
           ) {
             setDevices((devices) => {
               const existingDeviceIndex = devices.findIndex(
@@ -89,8 +89,10 @@ function Scanner(){
       const status = await device.isConnected();
       if(status){
         console.log(device.id, 'was successfully connected', status);
-        const services = await device.discoverAllServicesAndCharacteristics();
-        console.log(services.manufacturerData);
+        /*let services = await device.discoverAllServicesAndCharacteristics().then((results) =>{
+          console.log(results)
+        });
+        console.log(services);*/
       }else{
         console.log(device.id, 'was successfully connected', status);
       }
@@ -115,21 +117,26 @@ function Scanner(){
     setIsScanning(false);
     manager.stopDeviceScan();
   };
-  
+  const [connectedDeviceS, setConnectedDeviceS] = useState(null);
   const renderItem = ({ item }: { item: Device }) => (
     <View style={{ margin: 10 }}>
       <Text style={{ fontWeight: 'bold' }}>{item?.localName || 'Unknown'}</Text>
       <Text>{item.id}</Text>
       <Switch
         onValueChange={(value) => {
-          if (value) {
+          if (value && item !== connectedDeviceS) {
+            if (connectedDeviceS) {
+              disconnectFromDevice(connectedDeviceS);
+            }
             connectToDevice(item);
-          } else {
+            setConnectedDeviceS(item);
+          } else if (!value && item === connectedDeviceS) {
             disconnectFromDevice(item);
+            setConnectedDeviceS(null);
           }
         }}
-        value={item?.id === connectedDevice?.id}
-       />
+        value={item === connectedDeviceS}
+      />
     </View>
   );
 
