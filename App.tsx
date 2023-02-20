@@ -10,7 +10,7 @@ import Main from './Screens/Main';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 import { useColorScheme, View } from 'react-native';
 import CheckForBluetoothPermissions from './BLE components/CheckForPermissions';
-import UseBLE from './BLE components/UseBLE';
+import useBLE from './BLE components/UseBLE';
 function App(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
 
@@ -18,7 +18,7 @@ function App(): JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
   //CheckForBluetoothPermissions();
-  //UseBLE();
+  //useBLE();
   return (
       <Main></Main>
 

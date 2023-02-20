@@ -3,7 +3,7 @@ import { BleManager, Characteristic, Service, Device } from 'react-native-ble-pl
 import { NativeEventEmitter, NativeModules } from 'react-native';
 import { useState } from 'react';
 
-const bleManager = new BleManager();
+/*const bleManager = new BleManager();
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 function useBLE(){
@@ -20,7 +20,9 @@ function useBLE(){
       bleManager.stopDeviceScan();
     }, 10000);
   });
-}
+}*/
+
+
 
 export default useBLE;
 
