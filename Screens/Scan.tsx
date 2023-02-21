@@ -5,9 +5,9 @@ import { TouchableOpacity } from 'react-native';
 import CheckForBluetoothPermissions from '../BLE components/CheckForPermissions';
 import { RefreshControl } from 'react-native';
 import {BleError,BleManager,Characteristic,Device,} from 'react-native-ble-plx';
-const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const TX_CHARACTERISTIC = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-const RX_CHARACTERISTIC = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+import base64 from 'react-native-base64'
+import { atob } from 'react-native-quick-base64';
+
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
 const manager = new BleManager();
 function Scanner(){
@@ -85,20 +85,38 @@ function Scanner(){
       const status = await device.isConnected();
       console.log('The status is', status);
       if(status){
-        connectedDevice?.connect();
+        //connectedDevice?.connect();
         console.log(device.id, 'was successfully connected', status);
-        await device.discoverAllServicesAndCharacteristics().then(async (results) =>{
-          console.log(results)
+        //get all the services and characteristics
+        await device.discoverAllServicesAndCharacteristics();
           const services = await device.services();
           for (let service of services) {
             console.log(`Service UUID: ${service.uuid}`);
-
             const characteristics = await service.characteristics();
             for (let characteristic of characteristics) {
+              //console.log(characteristic)
               console.log(`Characteristic UUID: ${characteristic.uuid}`);
+              if(service.uuid === '0000180f-0000-1000-8000-00805f9b34fb' && characteristic.uuid === '00002a19-0000-1000-8000-00805f9b34fb'){
+                try{
+                  device.monitorCharacteristicForService('0000180f-0000-1000-8000-00805f9b34fb', '00002a19-0000-1000-8000-00805f9b34fb', (error,characteristic) => {
+                    if(error){
+                      console.log(JSON.stringify(error))
+                    }
+                    const str = characteristic?.value;
+                    //convert string to  ASCII
+                    const bytes = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+                    //converts ASCCII to decimal
+                    const dataView = new DataView(bytes.buffer);
+                    const value = dataView.getUint8(0);
+                    console.log(`The battery is: ${value}%`);
+                  });
+                }catch(error){
+                  console.log(error)
+                }
+                
+              }
             }
           }
-        });
       }else{
         console.log(device.id, 'was not connected but error did not show', status);
       }
