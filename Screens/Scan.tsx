@@ -7,17 +7,23 @@ import { RefreshControl } from 'react-native';
 import {BleError,BleManager,Characteristic,Device,} from 'react-native-ble-plx';
 import base64 from 'react-native-base64'
 import { atob } from 'react-native-quick-base64';
-
+import { Buffer } from 'buffer';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
 const manager = new BleManager();
+function convertBase64(str: string){
+  //convert string to  ASCII
+  const bytes = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+  //converts ASCCII to decimal
+  const dataView = new DataView(bytes.buffer);
+  const value = dataView.getUint8(0);
+  return value;
+}
 function Scanner(){
   const [devices, setDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { requestPermissions } = CheckForBluetoothPermissions();
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
-  
-
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     scanForDevices();
@@ -85,7 +91,7 @@ function Scanner(){
       const status = await device.isConnected();
       console.log('The status is', status);
       if(status){
-        //connectedDevice?.connect();
+        connectedDevice?.connect();
         console.log(device.id, 'was successfully connected', status);
         //get all the services and characteristics
         await device.discoverAllServicesAndCharacteristics();
@@ -96,15 +102,17 @@ function Scanner(){
             for (let characteristic of characteristics) {
               //console.log(characteristic)
               console.log(`Characteristic UUID: ${characteristic.uuid}`);
-              if(service.uuid === '0000180f-0000-1000-8000-00805f9b34fb' && characteristic.uuid === '00002a19-0000-1000-8000-00805f9b34fb'){
+              
+              if(service.uuid === '00001800-0000-1000-8000-00805f9b34fb' && characteristic.uuid === '00002a00-0000-1000-8000-00805f9b34fb'){
                 try{
-                  device.monitorCharacteristicForService('0000180f-0000-1000-8000-00805f9b34fb', '00002a19-0000-1000-8000-00805f9b34fb', (error,characteristic) => {
+                  device.monitorCharacteristicForService('00001800-0000-1000-8000-00805f9b34fb', '00002a00-0000-1000-8000-00805f9b34fb', async (error,characteristic) => {
                     if(error){
                       console.log(JSON.stringify(error))
                     }
+                    await device.readCharacteristicForService('00001800-0000-1000-8000-00805f9b34fb', '00002a00-0000-1000-8000-00805f9b34fb');
                     const str = characteristic?.value;
                     //convert string to  ASCII
-                    const bytes = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+                    const bytes = Uint8Array.from(atob(str!), c => c.charCodeAt(0));
                     //converts ASCCII to decimal
                     const dataView = new DataView(bytes.buffer);
                     const value = dataView.getUint8(0);
@@ -117,6 +125,37 @@ function Scanner(){
               }
             }
           }
+          /*try{
+              const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+              const TX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+              const RX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+              //const tx = device.readCharacteristicForService('00001800-0000-1000-8000-00805f9b34fb', '00002a00-0000-1000-8000-00805f9b34fb')
+              const BATTERY_LEVEL_COMMAND = 'battery';
+            device.monitorCharacteristicForService('00001800-0000-1000-8000-00805f9b34fb', '00002a00-0000-1000-8000-00805f9b34fb', (error,characteristic) => {
+              if(error){
+                console.log(JSON.stringify(error))
+              }
+              
+              const str = characteristic?.value;
+              console.log(str)
+              try{
+                //convert string to  ASCII
+              const bytes = Uint8Array.from(atob(str!), c => c.charCodeAt(0));
+              //converts ASCCII to decimal
+              const dataView = new DataView(bytes.buffer);
+              const value = dataView.getUint8(0);
+              console.log(`The battery is: ${value}%`);
+              }catch(error){
+                console.log(error)
+              }
+              
+            });
+            /*const data = Buffer.from(BATTERY_LEVEL_COMMAND);
+            (await tx).writeWithResponse(data)
+            
+          }catch(error){
+            console.log(error)
+          }*/
       }else{
         console.log(device.id, 'was not connected but error did not show', status);
       }
