@@ -17,8 +17,6 @@ const TX_CHARACTERISTIC = '6E400002-B5A3-F393-E0A9-E50E24DCCA9E';
 
 import {encode, decode} from 'base-64';
 
-const bleManager = new BleManager();
-
 type VoidCallback = (result: boolean) => void;
 
 interface request {
@@ -34,6 +32,7 @@ interface BluetoothLowEnergyApi {
   scanForPeripherals(): void;
   connectToDevice: (deviceId: Device) => Promise<void>;
   disconnectFromDevice: () => void;
+  bleManager: BleManager;
   makeRequest(cmd: string, device: Device): Promise<string>;
   connectedDevice: Device | null;
   allDevices: Device[];
@@ -44,6 +43,8 @@ interface BluetoothLowEnergyApi {
 }
 
 function useBLE(): BluetoothLowEnergyApi {
+  const bleManager = new BleManager();
+
   const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
   const [FWVer, setFWVer] = useState<string>('');
@@ -232,6 +233,7 @@ function useBLE(): BluetoothLowEnergyApi {
     scanForPeripherals,
     requestPermissions,
     connectToDevice,
+    bleManager,
     allDevices,
     connectedDevice,
     disconnectFromDevice,

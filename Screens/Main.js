@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { View, Text, StatusBar, Image, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StatusBar, Image, Platform, SafeAreaView, KeyboardAvoidingViewBase } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-
+import { KeyboardAvoidingView } from 'react-native';
 import Scanner from './Scan';
 import Info from './Info';
 
@@ -18,9 +18,9 @@ function MyTabs() {
           </View>
         ),
       }}></Tab.Screen>
-      <Tab.Screen name = "Microcontroller Info" component={Info} options = {{
+      <Tab.Screen name = "Device info" component={Info} options = {{
         tabBarIcon: ({focused}) =>(
-          <View style = {{alignItems:'center'}}>
+            <View style = {{alignItems:'center'}}>
             <Image source={require('../assets/info.png')} resizeMode = "contain" style = {{width: 30, height: 25, tintColor: focused? '#5abf90' : '#748c94'}}></Image>
             <Text style = {{color: focused? '#5abf90' : '#748c94'}}>Device info!</Text>
           </View>
