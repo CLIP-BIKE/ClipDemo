@@ -5,6 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { KeyboardAvoidingView } from 'react-native';
 import Scan from './Scan';
 import Info from './Info';
+import useBLE from '../BLE components/useBLE';
+import {useEffect} from 'react';
 
 const Tab = createBottomTabNavigator();
 function MyTabs() {
