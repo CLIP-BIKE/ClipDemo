@@ -1,12 +1,10 @@
 import * as React from 'react';
-import { View, Text, StatusBar, Image, Platform, SafeAreaView, KeyboardAvoidingViewBase } from 'react-native';
+import { View, Text,Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { KeyboardAvoidingView } from 'react-native';
 import Scan from './Scan';
 import Info from './Info';
-import useBLE from '../BLE components/useBLE';
-import {useEffect} from 'react';
 
 const Tab = createBottomTabNavigator();
 function MyTabs() {
