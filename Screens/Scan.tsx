@@ -1,24 +1,34 @@
 import React, {useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, Switch } from 'react-native';
 import { LogBox } from 'react-native';
-import CheckForBluetoothPermissions from '../BLE components/CheckForPermissions';
 import { RefreshControl } from 'react-native';
-import {BleManager,Device,} from 'react-native-ble-plx';
-import { atob } from 'react-native-quick-base64';
-import useBLE from '../BLE components/UseBLE';
-LogBox.ignoreLogs(['new NativeEventEmitter()']); // Ignore log notification by message
-//const manager = new BleManager();
+import {Device,} from 'react-native-ble-plx';
+import useBLE from '../BLE components/useBLE';
+import { useContext } from 'react';
+import { DeviceContext } from '../BLE components/DeviceContext';
 
-function Scanner(){
+LogBox.ignoreLogs(['new NativeEventEmitter()']); // Ignore log notification by message
+function Scanner (){
   const {
     requestPermissions,
     scanForPeripherals,
     allDevices,
     connectToDevice,
     disconnectFromDevice,
+    connectedDevice
   } = useBLE();
   const [isScanning, setIsScanning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { state, dispatch } = useContext(DeviceContext);
+
+  const setDevice = (device: Device) => {
+    dispatch({ type: 'SET_DEVICE', device });
+  };
+
+  const clearDevice = () => {
+    dispatch({ type: 'CLEAR_DEVICE' });
+  };
+
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     scanForDevices();
@@ -26,7 +36,6 @@ function Scanner(){
       setRefreshing(false);
     }, 1000);
   }, []);
-
   useEffect(() => {
     scanForDevices();
     setIsScanning(true)
@@ -45,26 +54,21 @@ function Scanner(){
       setIsScanning(false);
     }, 4000);
   };
-
-  const [connectedDeviceS, setConnectedDeviceS] = useState<Device | null>(null);
   const renderItem = ({ item }: { item: Device }) => (
     <View style={{ margin: 10 }}>
       <Text style={{ fontWeight: 'bold' }}>{item?.localName || 'Unknown'}</Text>
       <Text>{item.id}</Text>
       <Switch
         onValueChange={(value) => {
-          if (value && item !== connectedDeviceS) {
-            if (connectedDeviceS) {
-              disconnectFromDevice();
-            }
+          if (value) {
+            setDevice(item);
             connectToDevice(item);
-            setConnectedDeviceS(item);
-          } else if (!value && item === connectedDeviceS) {
+          } else{
             disconnectFromDevice();
-            setConnectedDeviceS(null);
+            clearDevice();
           }
         }}
-        value={item === connectedDeviceS}
+        value={connectedDevice != null}
       />
     </View>
   )
@@ -73,6 +77,8 @@ function Scanner(){
     offset: 60 * index,
     index,
   });
+  console.log(connectedDevice?.id, 'scanner');
+  
   return (
     <View style={{ flex: 1, padding: '2%' }}>
       {isScanning && (
@@ -90,6 +96,7 @@ function Scanner(){
           getItemLayout={getItemLayout}
         />
       )}
+      
     </View>
   );
 }
