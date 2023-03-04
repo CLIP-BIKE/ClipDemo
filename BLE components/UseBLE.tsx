@@ -1,15 +1,18 @@
 import {useState} from 'react';
-import {PermissionsAndroid, Platform} from 'react-native';
+import {PermissionsAndroid, Platform, ScrollView, Text, TextInput, TouchableOpacity, View} from 'react-native';
 import {Base64,BleError,BleManager,Characteristic,Device,} from 'react-native-ble-plx';
 import {PERMISSIONS, requestMultiple} from 'react-native-permissions';
 import DeviceInfo from 'react-native-device-info';
+import {encode, decode} from 'base-64';
 
+//List of Services and characteristics provided by the Nordic microcontroller
 const NUS_UUID = '6E400001-B5A3-F393-E0A9-E50E24DCCA9E';
 const RX_CHARACTERISTIC = '6E400003-B5A3-F393-E0A9-E50E24DCCA9E';
 const TX_CHARACTERISTIC = '6E400002-B5A3-F393-E0A9-E50E24DCCA9E';
 
-import {encode, decode} from 'base-64';
+//instance of bleManager is declare. It's global to prevent it from rerendering hence change the device.
 const bleManager = new BleManager();
+
 type VoidCallback = (result: boolean) => void;
 
 interface request {
@@ -20,28 +23,31 @@ interface request {
 
 let activeRequest: request | undefined = undefined;
 
+//interface to define what the useBLE component can do
 interface BluetoothLowEnergyApi {
   requestPermissions(cb: VoidCallback): Promise<void>;
   scanForPeripherals(): void;
   connectToDevice: (deviceId: Device) => Promise<void>;
+  connectedDevice: Device | null;
   disconnectFromDevice: () => void;
   makeRequest(cmd: string, device: Device): Promise<string>;
-  connectedDevice: Device | null;
+  onRXData: (error: BleError | null,characteristic: Characteristic | null) => void;
+  startStreamingData: (device: Device) => Promise<void>;
   allDevices: Device[];
   FWVer: string;
   telemetry: string;
   triggerPressed: boolean;
   pinPressed: boolean;
+
 }
 
 function useBLE(): BluetoothLowEnergyApi {
-  const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [FWVer, setFWVer] = useState<string>('');
   const [telemetry, setTelemetry] = useState<string>('');
   const [triggerPressed, setTriggerPressed] = useState<boolean>(false);
   const [pinPressed, setPinPressed] = useState<boolean>(false);
-
   const requestPermissions = async (cb: VoidCallback) => {
     if (Platform.OS === 'android') {
       const apiLevel = await DeviceInfo.getApiLevel();
@@ -79,17 +85,16 @@ function useBLE(): BluetoothLowEnergyApi {
       cb(true);
     }
   };
-
-  const isDuplicteDevice = (devices: Device[], nextDevice: Device) =>
-    devices.findIndex(device => nextDevice.id === device.id) > -1;
-
+  //This function expression checks if a device in the array of devices is duplicate.
+  const isDuplicteDevice = (devices: Device[], nextDevice: Device) => devices.findIndex(device => nextDevice.id === device.id) > -1;
+  
+  //This function expression initialize the scan of the bleManager instance, and search for devices which correspond to Clip.bike 
   const scanForPeripherals = () =>
     bleManager.startDeviceScan(null, null, (error, device) => {
       if (error) {
         console.log(error);
       }
-      //if (device && (device.name?.includes('Clip.') || device.name?.includes('Dfu'))) {
-      if (device && (device.name?.includes('Clip.'))) {
+      if (device && (device.name?.includes('Clip.') || device.name?.includes('Dfu'))) {
         setAllDevices((prevState: Device[]) => {
           if (!isDuplicteDevice(prevState, device)) {
             return [...prevState, device];
@@ -100,28 +105,31 @@ function useBLE(): BluetoothLowEnergyApi {
           return prevState;
         });
       }
-    });
-
+  });
+  
+  //This function expression connect to a device by accepting, the specific devie as an argument
   const connectToDevice = async (device: Device) => {
     try {
+      setConnectedDevice(device);
       const deviceConnection = await bleManager.connectToDevice(device.id);
-      setConnectedDevice(deviceConnection);
       await deviceConnection.discoverAllServicesAndCharacteristics();
-      startStreamingData(deviceConnection);
       bleManager.stopDeviceScan();
+      startStreamingData(deviceConnection);
     } catch (e) {
       console.log('FAILED TO CONNECT', e);
     }
   };
-
+  
+  // Since connecting to multiple device won't be allowed. This fucntion do not accept any argument and just cancel form the connected device
   const disconnectFromDevice = () => {
     if (connectedDevice) {
       bleManager.cancelDeviceConnection(connectedDevice.id);
       setConnectedDevice(null);
-      //FWVer;
+      console.log(connectedDevice.id, 'disconnected');
     }
   };
 
+  //This function expression accepts a command and make a request
   const makeRequest = (cmd: string, device: Device) => {
     if (activeRequest !== undefined) {
       return Promise.reject("Request already underway!");
@@ -149,7 +157,7 @@ function useBLE(): BluetoothLowEnergyApi {
     }
     return ret;
   };
-
+  //This function expression manages the RX characteristic. It checks for possible errors and check commands
   const onRXData = (
     error: BleError | null,
     characteristic: Characteristic | null,
@@ -199,7 +207,8 @@ function useBLE(): BluetoothLowEnergyApi {
 
     // setFWVer('');
   };
-
+  
+  
   const startStreamingData = async (device: Device) => {
     if (device) {
       try {
@@ -211,7 +220,7 @@ function useBLE(): BluetoothLowEnergyApi {
         // Go ahead and retreive the firmware version
         setFWVer(await makeRequest("tv", device));
         // Also trigger telemetry readback
-        await makeRequest("tV10", device);
+        //await makeRequest("tV10", device);
       } catch(e) {
         console.log("Error setting up connection", e);
       }
@@ -219,15 +228,17 @@ function useBLE(): BluetoothLowEnergyApi {
       console.log('No Device Connected');
     }
   };
+  console.log(connectedDevice?.id, 'Connected in useBLE');
   return {
     scanForPeripherals,
     requestPermissions,
     connectToDevice,
-    //bleManager,
-    allDevices,
     connectedDevice,
+    startStreamingData,
+    allDevices,
     disconnectFromDevice,
     makeRequest,
+    onRXData,
     FWVer,
     telemetry,
     triggerPressed,
