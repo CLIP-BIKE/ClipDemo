@@ -9,7 +9,7 @@ const RX_CHARACTERISTIC = '6E400003-B5A3-F393-E0A9-E50E24DCCA9E';
 const TX_CHARACTERISTIC = '6E400002-B5A3-F393-E0A9-E50E24DCCA9E';
 
 interface request {
-    cmd: Base64;
+    command: Base64;
     timeoutID: number;
     resolve?: (result: string) => void;
   }
@@ -18,7 +18,7 @@ interface dataFromDevice {
     telemetry: string;
     triggerPressed: boolean;
     pinPressed: boolean;
-    makeRequest(cmd: string, device: Device): Promise<string>;
+    makeRequest(command: string, device: Device): Promise<string>;
     startStreamingData: (device: Device, command: string) => Promise<void>;
 }
 let activeRequest: request | undefined = undefined;
@@ -29,17 +29,24 @@ function deviceInfo(): dataFromDevice {
     const [pinPressed, setPinPressed] = useState<boolean>(false);
 
     //This function expression accepts a command and make a request
-    const makeRequest = (cmd: string, device: Device) => {
+    const makeRequest = async (command: string, device: Device) => {
+        //whenever a request is make reset FWver string and telemetry string
+        setTelemetry('');
+        setFWVer('');
         if (activeRequest !== undefined) {
         return Promise.reject("Request already underway!");
         }
-        
+        device.monitorCharacteristicForService(
+            NUS_UUID,
+            RX_CHARACTERISTIC,
+            (error, characteristic) => onRXData(error, characteristic),
+        );
         let ret = new Promise<string>(async (resolve, reject) => {
-            console.log('TX: ', cmd);
+            console.log('TX: ', command);
             const _ = await device.writeCharacteristicWithoutResponseForService(
                 NUS_UUID,
                 TX_CHARACTERISTIC,
-                encode(cmd));
+                encode(command));
             let id = setTimeout(() => {
                 activeRequest = undefined;
                 reject("Timeout occurred");
@@ -50,8 +57,16 @@ function deviceInfo(): dataFromDevice {
             }
         });
         activeRequest = {
-        cmd: cmd,
+        command: command,
         timeoutID: -1,
+        }
+        if(ret != null){
+            if(command === 'tv'){
+                setFWVer(await ret);
+            }else if(command === 'TV10'){
+                // Also trigger telemetry readback
+                setTelemetry(await ret);
+            }
         }
         return ret;
     };
@@ -83,7 +98,7 @@ function deviceInfo(): dataFromDevice {
         }
         } else if (data.startsWith('qV')) {
         setTelemetry(data);
-        if ((activeRequest !== undefined)&&(activeRequest.cmd == 'tV')) {
+        if ((activeRequest !== undefined)&&(activeRequest.command == 'tV')) {
             // If a request is in place for this data, clear it out.
             clearTimeout(activeRequest.timeoutID);
             if (activeRequest.resolve !== undefined) {

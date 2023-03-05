@@ -5,23 +5,10 @@ import {PERMISSIONS, requestMultiple} from 'react-native-permissions';
 import DeviceInfo from 'react-native-device-info';
 import {encode, decode} from 'base-64';
 
-//List of Services and characteristics provided by the Nordic microcontroller
-const NUS_UUID = '6E400001-B5A3-F393-E0A9-E50E24DCCA9E';
-const RX_CHARACTERISTIC = '6E400003-B5A3-F393-E0A9-E50E24DCCA9E';
-const TX_CHARACTERISTIC = '6E400002-B5A3-F393-E0A9-E50E24DCCA9E';
-
 //instance of bleManager is declare. It's global to prevent it from rerendering hence change the device.
 const bleManager = new BleManager();
 
 type VoidCallback = (result: boolean) => void;
-
-interface request {
-  cmd: Base64;
-  timeoutID: number;
-  resolve?: (result: string) => void;
-}
-
-let activeRequest: request | undefined = undefined;
 
 //interface to define what the useBLE component can do
 interface BluetoothLowEnergyApi {
@@ -30,24 +17,12 @@ interface BluetoothLowEnergyApi {
   connectToDevice: (deviceId: Device) => Promise<void>;
   connectedDevice: Device | null;
   disconnectFromDevice: () => void;
-  makeRequest(cmd: string, device: Device): Promise<string>;
-  onRXData: (error: BleError | null,characteristic: Characteristic | null) => void;
-  startStreamingData: (device: Device) => Promise<void>;
   allDevices: Device[];
-  FWVer: string;
-  telemetry: string;
-  triggerPressed: boolean;
-  pinPressed: boolean;
-
 }
 
 function useBLE(): BluetoothLowEnergyApi {
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
   const [allDevices, setAllDevices] = useState<Device[]>([]);
-  const [FWVer, setFWVer] = useState<string>('');
-  const [telemetry, setTelemetry] = useState<string>('');
-  const [triggerPressed, setTriggerPressed] = useState<boolean>(false);
-  const [pinPressed, setPinPressed] = useState<boolean>(false);
   const requestPermissions = async (cb: VoidCallback) => {
     if (Platform.OS === 'android') {
       const apiLevel = await DeviceInfo.getApiLevel();
@@ -114,7 +89,7 @@ function useBLE(): BluetoothLowEnergyApi {
       const deviceConnection = await bleManager.connectToDevice(device.id);
       await deviceConnection.discoverAllServicesAndCharacteristics();
       bleManager.stopDeviceScan();
-      startStreamingData(deviceConnection);
+      //startStreamingData(deviceConnection);
     } catch (e) {
       console.log('FAILED TO CONNECT', e);
     }
@@ -129,120 +104,15 @@ function useBLE(): BluetoothLowEnergyApi {
     }
   };
 
-  //This function expression accepts a command and make a request
-  const makeRequest = (cmd: string, device: Device) => {
-    if (activeRequest !== undefined) {
-      return Promise.reject("Request already underway!");
-    }
-    let ret = new Promise<string>((resolve, reject) => {
-        console.log('TX: ', cmd);
-        return device.writeCharacteristicWithoutResponseForService(
-          NUS_UUID,
-          TX_CHARACTERISTIC,
-          encode(cmd),
-        ).then(_ => {
-          let id = setTimeout(() => {
-            activeRequest = undefined;
-            reject("Timeout occurred");
-          }, 1000);
-          if (activeRequest !== undefined) {
-            activeRequest.timeoutID = id;
-            activeRequest.resolve = resolve;
-          }
-        });
-    });
-    activeRequest = {
-      cmd: cmd,
-      timeoutID: -1,
-    }
-    return ret;
-  };
-  //This function expression manages the RX characteristic. It checks for possible errors and check commands
-  const onRXData = (
-    error: BleError | null,
-    characteristic: Characteristic | null,
-  ) => {
-    if (error) {
-      console.log("Unable to subscribe", error);
-      return -1;
-    } else if (!characteristic?.value) {
-      console.log('No Data was recieved');
-      return -1;
-    }
-    let data = decode(characteristic?.value);
-    console.log('RX: ', data);
-    // Check for data that should be parsed immediatel
-    if (data.startsWith('~b')) {
-      // Button was pressed!
-      if (data[2] == '1') {
-        setTriggerPressed(true);
-      } else if (data[2] == '2') {
-        setPinPressed(true);
-      } else if (data[2] == '7') {
-        setTriggerPressed(false);
-      } else if (data[2] == '8') {
-        setPinPressed(false);
-      }
-    } else if (data.startsWith('qV')) {
-      setTelemetry(data);
-      if ((activeRequest !== undefined)&&(activeRequest.cmd == 'tV')) {
-        // If a request is in place for this data, clear it out.
-        clearTimeout(activeRequest.timeoutID);
-        if (activeRequest.resolve !== undefined) {
-          activeRequest.resolve(data);
-        }
-        activeRequest = undefined;
-      }
-    } else if (activeRequest !== undefined) {
-      // Forward this data to the requestor
-      clearTimeout(activeRequest.timeoutID);
-      if (activeRequest.resolve !== undefined) {
-        activeRequest.resolve(data);
-      }
-      activeRequest = undefined;
-    } else {
-      // We got some data that wasn't asked of us:
-      console.log('Unhandled RX: ', data);
-    }
 
-    // setFWVer('');
-  };
-  
-  
-  const startStreamingData = async (device: Device) => {
-    if (device) {
-      try {
-        device.monitorCharacteristicForService(
-          NUS_UUID,
-          RX_CHARACTERISTIC,
-          (error, characteristic) => onRXData(error, characteristic),
-        );
-        // Go ahead and retreive the firmware version
-        setFWVer(await makeRequest("tv", device));
-        // Also trigger telemetry readback
-        //await makeRequest("tV10", device);
-      } catch(e) {
-        console.log("Error setting up connection", e);
-      }
-    } else {
-      console.log('No Device Connected');
-    }
-  };
   console.log(connectedDevice?.id, 'Connected in useBLE');
   return {
     scanForPeripherals,
     requestPermissions,
     connectToDevice,
     connectedDevice,
-    startStreamingData,
     allDevices,
     disconnectFromDevice,
-    makeRequest,
-    onRXData,
-    FWVer,
-    telemetry,
-    triggerPressed,
-    pinPressed,
   };
 }
 
