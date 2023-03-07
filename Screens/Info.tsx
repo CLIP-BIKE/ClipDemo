@@ -64,13 +64,7 @@ function Info() {
   const [isRemoteVisible, setIsRemoteVisible] = useState(false);
   const [mainFirmwareVersion, setMainFirmwareVersion] = useState<string>('');
   const [remoteFirmwareVersion, setRemoteFirmwareVersion] = useState<string>('');
-  useEffect(() => {
-    try {
-      getMainFirmwareVersion()
-    } catch (error) {
-      console.log(error);
-    }
-  }, [])
+
   useEffect(() => {
     try {
       const mainObject = MainPCBA(telemetry);
@@ -82,10 +76,11 @@ function Info() {
       setTemp(mainObject.Temps);
       setRuntimeCurrent(mainObject.I);
       setRuntimeVoltage(mainObject.Vbatt);
+      //getMainFirmware();
     } catch (error) {
       console.log(error);
     }
-  }, [telemetry]);
+  }, [telemetry])
   const sendRequest = async (cmd: string) => {
     try {
       if (state.connectedDevice && command !=  undefined) {
@@ -159,6 +154,14 @@ function Info() {
   const remoteHandleButtonPress = () => {
     if(state.connectedDevice){
       setIsRemoteVisible(true);
+      try {
+          const data = async () => {
+            
+          }
+          data()
+      } catch (error) {
+        console.log(error);
+      }
     }else{
       ToastAndroid.showWithGravity('Please connect a device', ToastAndroid.SHORT, ToastAndroid.CENTER);
     }
@@ -166,24 +169,30 @@ function Info() {
 
   const remoteHandleCloseModal = async () => {
     try {
-       setIsRemoteVisible(false);
+      if(state.connectedDevice){
+       
+      }
     } catch (error) {
       console.log(error)
     }
     setIsRemoteVisible(false);
   }
 
-  const getMainFirmwareVersion = async () => {
+  const getMainFirmware = async () =>{
     try {
-      await makeRequest('tv', state.connectedDevice!).then((version) =>{
-        if(version.includes('qv')){
-          version = version.replace('qv', '');
-        }
-        setMainFirmwareVersion(version);
-      });
-    }catch (error) {
+      const data = async () => {
+          if(state.connectedDevice){
+            let version = await makeRequest('tv', state.connectedDevice!);
+            if(version.includes('qv')){
+              version = version.replace('qv', '');
+            }
+            setMainFirmwareVersion(version);
+          }
+      }
+      data()
+  } catch (error) {
     console.log(error);
-    }
+  }
   }
   console.log(state.connectedDevice?.localName, 'in Info');
   
