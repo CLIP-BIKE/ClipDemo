@@ -15,13 +15,14 @@ function Scanner (){
     allDevices,
     connectToDevice,
     disconnectFromDevice,
-    connectedDevice
+    connectedDevice,
+    setConnectedDevice
   } = useBLE();
   const [isScanning, setIsScanning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { state, dispatch } = useContext(DeviceContext);
 
-  const setDevice = (device: Device) => {
+  const setDeviceContext = (device: Device) => {
     dispatch({ type: 'SET_DEVICE', device });
   };
 
@@ -52,7 +53,7 @@ function Scanner (){
     setIsScanning(true);
     setTimeout(() => {
       setIsScanning(false);
-    }, 4000);
+    }, 5000);
   };
   const renderItem = ({ item }: { item: Device }) => (
     <View style={{ margin: 10 }}>
@@ -61,14 +62,15 @@ function Scanner (){
       <Switch
         onValueChange={(value) => {
           if (value) {
-            setDevice(item);
+            setDeviceContext(item);
+            setConnectedDevice(item)
             connectToDevice(item);
           } else{
             disconnectFromDevice();
             clearDevice();
           }
         }}
-        value={connectedDevice != null}
+        value={item === connectedDevice &&connectedDevice != null}
       />
     </View>
   )
