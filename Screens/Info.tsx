@@ -65,6 +65,9 @@ function Info() {
   const [mainFirmwareVersion, setMainFirmwareVersion] = useState<string>('');
   const [remoteFirmwareVersion, setRemoteFirmwareVersion] = useState<string>('');
 
+  useEffect(() =>{
+   getMainFirmware(); 
+  },[]);
   useEffect(() => {
     try {
       const mainObject = MainPCBA(telemetry);
@@ -76,7 +79,6 @@ function Info() {
       setTemp(mainObject.Temps);
       setRuntimeCurrent(mainObject.I);
       setRuntimeVoltage(mainObject.Vbatt);
-      //getMainFirmware();
     } catch (error) {
       console.log(error);
     }
@@ -151,14 +153,16 @@ function Info() {
       console.log(error)
     }
   }
-  const remoteHandleButtonPress = () => {
+  const remoteHandleButtonPress = async () => {
     if(state.connectedDevice){
       setIsRemoteVisible(true);
       try {
-          const data = async () => {
-            
-          }
-          data()
+          await makeRequest('xv', state.connectedDevice!).then((version) =>{
+              if(version.includes('qv')){
+                version = version.replace('qv', '');
+              }
+              setRemoteFirmwareVersion(version);
+            })
       } catch (error) {
         console.log(error);
       }
@@ -168,31 +172,22 @@ function Info() {
   }
 
   const remoteHandleCloseModal = async () => {
-    try {
-      if(state.connectedDevice){
-       
-      }
-    } catch (error) {
-      console.log(error)
-    }
     setIsRemoteVisible(false);
   }
 
   const getMainFirmware = async () =>{
     try {
-      const data = async () => {
           if(state.connectedDevice){
-            let version = await makeRequest('tv', state.connectedDevice!);
-            if(version.includes('qv')){
-              version = version.replace('qv', '');
-            }
-            setMainFirmwareVersion(version);
+            await makeRequest('tv', state.connectedDevice!).then((version) =>{
+              if(version.includes('qv')){
+                version = version.replace('qv', '');
+              }
+              setMainFirmwareVersion(version);
+            })
           }
-      }
-      data()
-  } catch (error) {
-    console.log(error);
-  }
+    }catch (error) {
+      console.log(error);
+    }
   }
   console.log(state.connectedDevice?.localName, 'in Info');
   
@@ -239,7 +234,7 @@ function Info() {
           <View style={styles.content}>
             <TouchableOpacity style={styles.closeButton} onPress={remoteHandleCloseModal}><Text style={styles.closeButtonText}>Close</Text></TouchableOpacity>
             <View style ={styles.dataContainer}>
-              <Text style ={styles.dataText}>Batterylevel level: {battery} %</Text>
+              <Text style ={styles.dataText}>Firmware Version: {remoteFirmwareVersion}</Text>
             </View>
           </View>
         </View>
