@@ -60,14 +60,6 @@ function deviceInfo(): dataFromDevice {
         command: command,
         timeoutID: -1,
         }
-        if(ret != null){
-            if(command === 'tv'){
-                setFWVer(await ret);
-            }else if(command === 'TV10'){
-                // Also trigger telemetry readback
-                setTelemetry(await ret);
-            }
-        }
         return ret;
     };
     //This function expression manages the RX characteristic. It checks for possible errors and check commands
@@ -133,9 +125,9 @@ function deviceInfo(): dataFromDevice {
             // Go ahead and retreive the firmware version
             if(commands === 'tv'){
                 setFWVer(await makeRequest("tv", device));
-            }else if(commands === 'tv10'){
+            }else if(commands === 'TV10'){
                 // Also trigger telemetry readback
-                setTelemetry(await makeRequest("tV10", device));
+                setTelemetry(await makeRequest("TV10", device));
             }
         } catch(e) {
             console.log("Error setting up connection", e);

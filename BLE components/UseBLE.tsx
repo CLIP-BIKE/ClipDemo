@@ -18,6 +18,7 @@ interface BluetoothLowEnergyApi {
   connectedDevice: Device | null;
   disconnectFromDevice: () => void;
   allDevices: Device[];
+  setConnectedDevice(device: Device): void;
 }
 
 function useBLE(): BluetoothLowEnergyApi {
@@ -85,7 +86,7 @@ function useBLE(): BluetoothLowEnergyApi {
   //This function expression connect to a device by accepting, the specific devie as an argument
   const connectToDevice = async (device: Device) => {
     try {
-      setConnectedDevice(device);
+      //setConnectedDevice(device);
       const deviceConnection = await bleManager.connectToDevice(device.id);
       await deviceConnection.discoverAllServicesAndCharacteristics();
       bleManager.stopDeviceScan();
@@ -113,6 +114,7 @@ function useBLE(): BluetoothLowEnergyApi {
     connectedDevice,
     allDevices,
     disconnectFromDevice,
+    setConnectedDevice
   };
 }
 
