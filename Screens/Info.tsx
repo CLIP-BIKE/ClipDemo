@@ -5,7 +5,6 @@ import { TextInput } from 'react-native';
 import { DeviceContext } from '../BLE components/DeviceContext';
 import deviceInfo from '../BLE components/deviceInfo';
 import { ToastAndroid } from 'react-native';
-import RemotePCBA from './PCBAS Information/RemotePCBA';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
 
 interface data {
