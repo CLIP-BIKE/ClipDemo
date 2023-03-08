@@ -5,8 +5,10 @@ import { TextInput } from 'react-native';
 import { DeviceContext } from '../BLE components/DeviceContext';
 import deviceInfo from '../BLE components/deviceInfo';
 import { ToastAndroid } from 'react-native';
+import { encode } from 'base-64';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
-
+const GENERIC_ACCESS_SERVICE_UUID = '00001800-0000-1000-8000-00805f9b34fb';
+const DEVICE_NAME_CHARACTERISTIC = '00002A00-0000-1000-8000-00805F9B34FB';
 interface data {
   RPM: number;
   I: number;
@@ -64,6 +66,8 @@ function Info() {
   const [isRemoteVisible, setIsRemoteVisible] = useState(false);
   const [mainFirmwareVersion, setMainFirmwareVersion] = useState<string>('');
   const [remoteFirmwareVersion, setRemoteFirmwareVersion] = useState<string>('');
+  const [renametext, setRenameText] = useState<string>('');
+  const [renameisVisible, setRenameVisible] = useState<boolean>(false);
 
   useEffect(() =>{
    getMainFirmware(); 
@@ -189,15 +193,35 @@ function Info() {
       console.log(error);
     }
   }
+  const changeDeviceName = async () =>{
+    if(state.connectedDevice){
+      try {
+        await state.connectedDevice.writeCharacteristicWithoutResponseForService(
+          GENERIC_ACCESS_SERVICE_UUID,
+          DEVICE_NAME_CHARACTERISTIC,
+          encode('new name')
+        );
+        setRenameVisible(false);
+      } catch (error) {
+        console.log('error: ', error)
+      }
+    }
+  }
+  const renameHandle = () =>{
+    setRenameVisible(true);
+  }
+  const renameHandleCloseModal = () =>{
+    setRenameVisible(false);
+  }
   console.log(state.connectedDevice?.localName, 'in Info');
   
   return (
     <View style = {{ backgroundColor: 'grey', height: '100%', flex: 1, padding: 5, margin: 5}}>
       <View style = {{flexDirection: 'row', width: '100%', position: 'relative', paddingEnd: '3%'}}>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={mainHandleButtonPress}><Text>Main</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={remoteHandleButtonPress}><Text>Remote</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}}><Text>Update Main</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}}><Text>update Remote</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={mainHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Main</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={remoteHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Remote</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}}><Text style = {renameModalStyles.buttonText}>Update Main</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress = {renameHandle}><Text style = {renameModalStyles.buttonText}>Rename Device</Text></TouchableOpacity>
       </View>
       <ScrollView style = {{height: '85%', backgroundColor: 'white', padding: 5, zIndex:0}}>
         {state.connectedDevice? <Text>{state.connectedDevice?.id} is connected</Text>:<Text>Please Connect to a device</Text>}
@@ -239,16 +263,71 @@ function Info() {
           </View>
         </View>
       </Modal>
+      <Modal visible = {renameisVisible} animationType = 'slide' transparent = {true}>
+        <View style={renameModalStyles.modal}>
+          <Text style={renameModalStyles.heading}>Rename Device</Text>
+          <TextInput style={renameModalStyles.input} value={renametext} onChangeText={setRenameText} placeholder="Enter new name"/>
+          <View style={renameModalStyles.buttons}>
+            <TouchableOpacity onPress={renameHandleCloseModal} style={renameModalStyles.cancelButton}><Text style={renameModalStyles.buttonText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity onPress={changeDeviceName} style={renameModalStyles.renameButton}><Text style={renameModalStyles.buttonText}>Rename</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View style = {{ backgroundColor: 'white', padding: 5, flexDirection: 'row', alignItems: 'center', position: 'relative', top:'1%'}}>
         <TextInput onFocus={handleFocus} onBlur={handleBlur} autoFocus={isFocused} style ={{borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 10, width: '80%'}} placeholder='Enter Command' value = {command} onChangeText={setCommand}></TextInput>
         <TouchableOpacity style={{backgroundColor: '#5abf90', padding: 10, borderRadius: 5, marginLeft: 10}} onPress = {handlePress}>
-        < Text style={{ color: 'blue', fontSize: 16}}>Send</Text>
+        < Text style = {renameModalStyles.buttonText}>Send</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
+const renameModalStyles = StyleSheet.create({
+  modal: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  heading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 20,
+  },
+  buttons: {
+    flexDirection: 'row',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#ddd',
+    borderRadius: 5,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  renameButton: {
+    flex: 1,
+    backgroundColor: '#5abf90',
+    borderRadius: 5,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});
 const styles = StyleSheet.create({
   dataButton: { 
     fontFamily: 'Arial', 
