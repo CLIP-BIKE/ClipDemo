@@ -31,8 +31,6 @@ function deviceInfo(): dataFromDevice {
     //This function expression accepts a command and make a request
     const makeRequest = async (command: string, device: Device) => {
         //whenever a request is make reset FWver string and telemetry string
-        setTelemetry('');
-        setFWVer('');
         if (activeRequest !== undefined) {
         return Promise.reject("Request already underway!");
         }
