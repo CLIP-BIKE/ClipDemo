@@ -5,7 +5,8 @@ import { TextInput } from 'react-native';
 import { DeviceContext } from '../BLE components/DeviceContext';
 import deviceInfo from '../BLE components/deviceInfo';
 import { ToastAndroid } from 'react-native';
-import { encode } from 'base-64';
+import { decode, encode } from 'base-64';
+import { setName } from 'react-native-ble-manager';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
 const GENERIC_ACCESS_SERVICE_UUID = '00001800-0000-1000-8000-00805f9b34fb';
 const DEVICE_NAME_CHARACTERISTIC = '00002A00-0000-1000-8000-00805F9B34FB';
@@ -24,9 +25,7 @@ function removeQVesc(inputString: string) {
 function MainPCBA(str: string): data {
   const newString = removeQVesc(str);
   const result: Partial<data> = {};
-  console.log(str);
   newString.split(", ").forEach((item) => {
-    console.log(item)
     const [key, value] = item.split(" ");
     //console.log([key, value])
     if (key === "Temps") {
@@ -75,7 +74,6 @@ function Info() {
   useEffect(() => {
     try {
       const mainObject = MainPCBA(telemetry);
-      console.log('The battery is',mainObject.RPM);
       setBattery(batteryPercent(mainObject.Vbatt));
       setrpm(mainObject.RPM);
       setDrive(mainObject.Drive);
@@ -87,45 +85,7 @@ function Info() {
       console.log(error);
     }
   }, [telemetry])
-  const sendRequest = async (cmd: string) => {
-    try {
-      if (state.connectedDevice && command !=  undefined) {
-        startStreamingData(state.connectedDevice, command);
-      }
-    } catch (error) {
-      console.log(error)
-    }
-  };
-  const commandValid = (commands: string | undefined) =>{
-    if(commands?.includes('tv') || commands?.includes('T')){
-      return true
-    }
-    return false;
-  }
-  //handle press for keyboard
-  const handlePress = () => {
-    setIsFocused(true);
-    Keyboard.dismiss();
-    if(state.connectedDevice){
-      if(command != undefined && commandValid(command)){
-        sendRequest(command);
-        setCommand('');
-        console.log('command was sent');
-      }else{
-        ToastAndroid.showWithGravity('Invalid command was entered', ToastAndroid.SHORT, ToastAndroid.CENTER);
-        setCommand('');
-      }
-    }else if(state.connectedDevice === null){
-      ToastAndroid.showWithGravity('Please connect a device', ToastAndroid.SHORT, ToastAndroid.CENTER);
-      setCommand('');
-    }
-  };
-  const handleFocus = () => {
-    setIsFocused(true);
-  };
-  const handleBlur = () => {
-    setIsFocused(false);
-  };
+  
   //handle press for modal
   const mainHandleButtonPress = () => {
     if(state.connectedDevice){
@@ -199,8 +159,9 @@ function Info() {
         await state.connectedDevice.writeCharacteristicWithoutResponseForService(
           GENERIC_ACCESS_SERVICE_UUID,
           DEVICE_NAME_CHARACTERISTIC,
-          encode('new name')
+          encode(renametext)
         );
+        setRenameText('');
         setRenameVisible(false);
       } catch (error) {
         console.log('error: ', error)
@@ -208,26 +169,40 @@ function Info() {
     }
   }
   const renameHandle = () =>{
-    setRenameVisible(true);
+    if(state.connectedDevice){
+      setRenameVisible(true);
+    }else{
+      ToastAndroid.showWithGravity('Please connect a device', ToastAndroid.SHORT, ToastAndroid.CENTER);
+    }
   }
   const renameHandleCloseModal = () =>{
     setRenameVisible(false);
+    setRenameText('');
   }
-  console.log(state.connectedDevice?.localName, 'in Info');
+
+  const getDeviceName = async () =>{
+    if(state.connectedDevice){
+      try {
+        await state.connectedDevice.readCharacteristicForService(GENERIC_ACCESS_SERVICE_UUID,DEVICE_NAME_CHARACTERISTIC).then((name) => {
+          console.log('The new name is ', decode(name.value!));
+        })
+        //setRenameVisible(false);
+      } catch (error) {
+        console.log('error: ', error)
+      }
+    }
+  }
+  getDeviceName();
+  console.log(state.connectedDevice?.name, 'in Info');
   
   return (
     <View style = {{ backgroundColor: 'grey', height: '100%', flex: 1, padding: 5, margin: 5}}>
-      <View style = {{flexDirection: 'row', width: '100%', position: 'relative', paddingEnd: '3%'}}>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={mainHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Main</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, width: '20%', marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress={remoteHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Remote</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}}><Text style = {renameModalStyles.buttonText}>Update Main</Text></TouchableOpacity>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, marginRight: 5, justifyContent: 'center', alignItems: 'center'}} onPress = {renameHandle}><Text style = {renameModalStyles.buttonText}>Rename Device</Text></TouchableOpacity>
+      <View style = {{width: '100%', position: 'relative'}}>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}} onPress={mainHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Main</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}} onPress={remoteHandleButtonPress}><Text style = {renameModalStyles.buttonText}>Remote</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}}><Text style = {renameModalStyles.buttonText}>Update Main</Text></TouchableOpacity>
+        <TouchableOpacity style={{backgroundColor: '#5abf90', height: 30, marginBottom: 5, padding: 5, borderRadius: 5, justifyContent: 'center', alignItems: 'center'}} onPress = {renameHandle}><Text style = {renameModalStyles.buttonText}>Rename Device</Text></TouchableOpacity>
       </View>
-      <ScrollView style = {{height: '85%', backgroundColor: 'white', padding: 5, zIndex:0}}>
-        {state.connectedDevice? <Text>{state.connectedDevice?.id} is connected</Text>:<Text>Please Connect to a device</Text>}
-        {state.connectedDevice && FWVer?<Text>{FWVer}</Text>: <Text style ={{display:'none'}}></Text>}
-        {state.connectedDevice && telemetry?<Text>{telemetry}</Text>: <Text style ={{display:'none'}}></Text>}
-      </ScrollView>
       <Modal visible={isMainVisible} animationType="slide" transparent={true}>
         <View style={styles.modal}>
           <View style={styles.header}>
@@ -273,12 +248,6 @@ function Info() {
           </View>
         </View>
       </Modal>
-      <View style = {{ backgroundColor: 'white', padding: 5, flexDirection: 'row', alignItems: 'center', position: 'relative', top:'1%'}}>
-        <TextInput onFocus={handleFocus} onBlur={handleBlur} autoFocus={isFocused} style ={{borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 10, width: '80%'}} placeholder='Enter Command' value = {command} onChangeText={setCommand}></TextInput>
-        <TouchableOpacity style={{backgroundColor: '#5abf90', padding: 10, borderRadius: 5, marginLeft: 10}} onPress = {handlePress}>
-        < Text style = {renameModalStyles.buttonText}>Send</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
